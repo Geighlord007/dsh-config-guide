@@ -31,10 +31,18 @@ cp ~/Deepseek/dsh-config-guide/v3/AGENTS.global.fedora.md ~/.dsh/AGENTS.md
   见 [Linux 手册 §7.1](./DSH-Setup-Guide.linux.md)。自检脚本该项为提示，不阻塞。
   已记录以免后来者误判为疏漏。
 
-## ⚠️ 待确认项（文档里已标【未核实】）
+## ✅ v3.1 已用源码核实（从"待确认"转正）
 
-1. `dsh web` 的前台/后台行为（影响 systemd unit 的 `Type`）
-2. `dsh web --host/--port` 的确切参数名
-3. 飞书链路是否暴露 `/permission` 这类斜杠命令
-4. Windows 上受限令牌 + ACL 沙箱的实际拦截效果
-5. patch 层是否展开 `$env:LOCALAPPDATA` 这类变量
+| 项 | 结论 | 依据 |
+|---|---|---|
+| `dsh web` 前台还是 daemon | **前台常驻**（`runProfile` 被 `await`）→ systemd 用 `Type=simple` | 【源码】`apps/cli/src/bin.ts` |
+| `dsh web` 的参数名 | `--host` / `--port` / `--no-open` / `--trusted-host`（由 **web app** 解析，非 launcher） | 【源码】`bundle/web-app/src/startup.ts` |
+| 能否 `--host 0.0.0.0` | **CLI 明文拒绝**，理由：会向网络暴露远程代码执行 | 【源码】同上 |
+| 有没有 `dsh stop` | **没有**（CLI 只有 `web` / `plugin`） | 【源码】`apps/cli/src/args.ts` |
+| `/api` 围栏是什么 | browser-trust 围栏，防 DNS rebinding / 跨站，**不是鉴权层** | 【源码】`client/connection/src/api-request-trust.ts` |
+
+## ⚠️ 仍需在对应机器确认（Linux 本机无法验证）
+
+1. 飞书链路是否暴露 `/permission` 这类斜杠命令（需 Windows 那台的 `dsh-lark` profile）
+2. Windows 上「受限令牌 + ACL」沙箱的实际拦截效果
+3. patch 层是否展开 `$env:LOCALAPPDATA` 这类变量

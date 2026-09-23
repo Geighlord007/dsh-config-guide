@@ -31,3 +31,25 @@
 - `USER_PRESET_DIR = .agent-presets` 挂在 DSH home 下 → `~/.dsh/.agent-presets/` —— 正确（【源码】`preset/agent-presets/src/discovery.ts` L51 + `index.ts` L181）。
 - P0/P1/P2/P3 迁移优先级表、"不需要迁移"清单 —— 思路正确，v3 只做小幅勘误。
 - 建议帮朋友安装时先用 `ask` —— 正确，v3 进一步说明 `ask`/`never` 的真实语义。
+
+---
+
+## 四、v3.1 补充核实（全部来自源码，非推测）
+
+写 v3 时有 5 条标了【未核实】。其中 5 条里有 3 条可以靠读源码定论，已回填并顺带发现两处 v2 的错误：
+
+| 项 | 结论 | 依据 |
+|---|---|---|
+| `dsh web` 前台/daemon | **前台常驻**（`runProfile` 被 `await`）→ systemd `Type=simple` 正确 | 【源码】`apps/cli/src/bin.ts` |
+| `dsh web` 参数名 | `--host <host>` / `--port <port>` / `--no-open` / `--trusted-host <authority...>`；由 **web app** 解析（launcher 只做透传） | 【源码】`bundle/web-app/src/startup.ts` |
+| **v2 错**：`host: '0.0.0.0'` | CLI **明文拒绝**该值，理由原文是"would expose remote code execution to the network"。绑 LAN 必须改配置层，等于绕过上游刻意设的闸门 | 【源码】同上 |
+| **v2 错**：`dsh stop` | **不存在该命令**。停止 = Ctrl+C / `systemctl --user stop` / 结束进程 | 【源码】`apps/cli/src/args.ts` |
+| `/api` 的信任模型 | browser-trust 围栏只认 loopback、绑 LAN 时自动推导的 LAN IP 字面量、`--trusted-host` 声明项；上游注释明确 **"this fence is not an auth layer"**。走隧道/域名访问需要 `--trusted-host` | 【源码】`client/connection/src/api-request-trust.ts`、`bundle/web-app/src/index.ts` |
+
+**顺带补进文档的实务要点**
+
+- systemd unit 必须加 `--no-open`（无浏览器可开）
+- `--port 0` 可让 OS 分配空闲端口
+- `webserver.host` 的类型是闭合联合 `'127.0.0.1' | '0.0.0.0'`，不存在"绑某个网卡"的写法
+
+**仍未核实（保留）**：飞书是否暴露 `/permission` · Windows ACL 沙箱实际效果 · patch 是否展开 `$env:` 变量。

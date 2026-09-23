@@ -46,6 +46,18 @@ dsh                                         # 首启创建 ~/.dsh
 # 浏览器打开 http://127.0.0.1:3080
 ```
 
+**启动/停止**（【源码】`apps/cli/src/args.ts` + `bundle/web-app/src/startup.ts`）：
+
+```powershell
+dsh web                       # = dsh --profile web，前台常驻，并自动开浏览器
+dsh web --no-open             # 不开浏览器
+dsh web --port 8080           # 换端口
+dsh web --port 0              # OS 分配空闲端口
+```
+
+> ⚠️ **没有 `dsh stop` 这个命令**（CLI 只有 `web` 与 `plugin` 两个子命令）。停止 = 前台 Ctrl+C，或结束进程。
+> ⚠️ **`--host 0.0.0.0` 会被 CLI 拒绝**，理由见 §10。
+
 ---
 
 ## 3. 凭证
@@ -402,7 +414,14 @@ DSH_LARK_NOTIFY_TOKEN=...
 
 密码在 DSH 内部存储，迁移需重输。Remote Web UI 设备配对需重新扫码。
 
-🚨 **暴露面提醒**：`host: '0.0.0.0'` + `remote-web-ui.autoTunnel: true` + `lanBind: true` = **局域网 + 隧道都能进**。请至少确认隧道侧有鉴权；不确定就把 webserver 收回 `127.0.0.1`，只走隧道。
+🚨 **暴露面提醒**：`host: '0.0.0.0'` + `remote-web-ui.autoTunnel: true` + `lanBind: true` = **局域网 + 隧道都能进**。
+
+【源码】`bundle/web-app/src/startup.ts` 里，上游**明文拒绝** `--host 0.0.0.0`：
+
+> `error: --host 0.0.0.0 is intentionally not supported yet for safety: it would expose remote code execution to the network; use 127.0.0.1 instead`
+
+也就是说 v2 §5 里那条 `host: '0.0.0.0'` 是**绕过上游刻意设的闸门**（配置层仍接受该值）。要走隧道/自定义域名，正确做法是绑 loopback + `--trusted-host <该authority>`（`/api` 的 browser-trust 围栏只认 loopback、LAN IP 字面量和显式声明的 authority）。
+⚠️ 且该围栏**不是鉴权层**（上游注释原话："this fence is not an auth layer"）——它防 DNS rebinding 与跨站，不防陌生人。
 
 ---
 
@@ -439,7 +458,8 @@ $backup  = "<U盘或云盘路径>\.dsh-backup"
 
 npm install -g @deepseek-ai/dsh
 dsh --version
-# dsh stop   # 若在运行
+# 若在运行：先停掉（没有 dsh stop 命令，直接结束进程）
+#   Get-Process | Where-Object { $_.Path -like '*dsh*' } | Stop-Process
 
 foreach ($f in @('.credentials.yaml','.env','settings.yaml','skin-center-active.json',
                  'dream-skin.json','dsh-ssh.json','pet.json')) {

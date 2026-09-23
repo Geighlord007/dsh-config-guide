@@ -73,12 +73,29 @@ pnpm install
 
 > 🔴 **升级前先读 `~/.dsh/profiles/web/cordis.patch.yml`**：里面已经有一条"因版本不兼容先禁用 `agent-teams`"。**升级要连带处理这批被隔离的插件**——升完把 `disabled` 逐条撤掉试，别一起放开。
 
-### 2.4 只启动 Web GUI
+### 2.4 启动 Web GUI
+
+`dsh web` 是 `dsh --profile web` 的别名，**前台常驻**（【源码】`apps/cli/src/bin.ts` 对 `runProfile` 是 `await`，webserver 监听期间进程不退出），Ctrl+C 结束。
+
+【源码】`packages/bundle/web-app/src/startup.ts` 定义了这个 flag 家族（由 **web app** 解析，不是 launcher）：
+
+| flag | 作用 |
+|---|---|
+| `--host <host>` | 绑定地址。**`--host 0.0.0.0` 会被直接拒绝**，见 §6.3 |
+| `--port <port>` | 端口；`--port 0` 让 OS 挑空闲端口 |
+| `--no-open` | 启动后不自动开浏览器（**systemd 里必须加**） |
+| `--trusted-host <authority...>` | 追加 `/api` browser-trust 围栏接受的 authority（可重复） |
+| `-h, --help` | web app 自己的帮助 |
 
 ```bash
-dsh web            # 【未核实】前台启动，Ctrl+C 退出
-# 浏览器 http://127.0.0.1:3080
+dsh web                     # 默认 127.0.0.1:3080，并自动开浏览器
+dsh web --no-open           # 不开浏览器
+dsh web --port 8080         # 换端口
+dsh web --port 0            # OS 分配空闲端口
 ```
+
+> ⚠️ **没有 `dsh stop` 这个命令**（【源码】`apps/cli/src/args.ts` 只有 `web` 与 `plugin` 两个子命令）。
+> 停止方式：前台跑就 Ctrl+C；systemd 托管就 `systemctl --user stop dsh`；否则 `pkill -f 'dsh web'`。
 
 ---
 
@@ -229,7 +246,7 @@ After=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=%h/Deepseek
-ExecStart=%h/.local/bin/dsh web
+ExecStart=%h/.local/bin/dsh web --no-open
 Restart=on-failure
 RestartSec=5
 
@@ -241,25 +258,41 @@ systemctl --user enable --now dsh.service
 journalctl --user -u dsh -f          # 看日志
 ```
 
-> 【未核实】`dsh web` 是否前台常驻；若它自己 daemon 化，把 `Type=simple` 改 `Type=forking` 或去掉 `Restart`。
+> 【源码】`dsh web` 是前台常驻进程（`runProfile` 被 `await`），所以 `Type=simple` 正确；`--no-open` 必须有——systemd 环境里没有浏览器可开。
 > `WorkingDirectory` 很重要：它会成为**无 cwd 会话的兜底工作区**（【源码】`sandbox-policy`），直接影响围栏边界。
 > 你想开机就跑（未登录也跑）：`sudo loginctl enable-linger $USER`
 
 ### 6.3 手机访问（本机没有 lark profile，走 Web GUI）
 
 ```bash
-# 1) 只绑本机（默认，最安全）
-dsh web --host 127.0.0.1 --port 3080        # 【未核实】参数名
+# 1) 默认：只绑本机（推荐）
+dsh web --no-open                            # = 127.0.0.1:3080
+dsh web --host 127.0.0.1 --port 3080 --no-open   # 显式写法【源码】参数名已核实
 
-# 2) 要局域网访问 → 绑 0.0.0.0 并放行 firewalld
+# 2) 局域网访问：CLI 会拒绝 --host 0.0.0.0，必须改 patch 配置
+#    ~/.dsh/profiles/web/cordis.patch.yml
+#      - id: webserver
+#        name: '@deepseek-ai/dsh-host-webserver'
+#        config: { host: '0.0.0.0', port: 3080 }
+#    然后放行 firewalld：
 sudo firewall-cmd --add-port=3080/tcp --permanent && sudo firewall-cmd --reload
 ip -4 addr show scope global | grep inet     # 查本机 LAN IP
 ```
 
-- 🔴 绑 `0.0.0.0` = **同网段任何人都能连**。DSH 的权限默认是 `workspace-write`，但**会话工作区里的内容仍可被读写**。只在可信网络下这么做，用完 `firewall-cmd --remove-port=3080/tcp --permanent`。
-- 更稳的路线：只绑 `127.0.0.1`，用 SSH 隧道从手机/别的机器进：
+🔴 **`--host 0.0.0.0` 被 CLI 明文拒绝**（【源码】`web-app/src/startup.ts` 的原文理由）：
+
+> `error: --host 0.0.0.0 is intentionally not supported yet for safety: it would expose remote code execution to the network; use 127.0.0.1 instead`
+
+也就是说：**绑局域网要绕过一个上游刻意设的安全闸门**（配置层 `webserver.host` 仍接受 `'0.0.0.0'`）。同网段任何人都能连，`workspace-write` 只约束写范围、不约束读。用完记得关端口。
+
+**`/api` 的 browser-trust 围栏**（【源码】`client/connection/src/api-request-trust.ts`）：
+拦的是 **DNS rebinding 与跨站请求**（校验 Host），接受的 authority 是 **loopback、绑 LAN 时自动推导出的 LAN IP 字面量、以及 `--trusted-host` 声明的条目**。
+⚠️ 上游注释明确写了：**"this fence is not an auth layer"** —— 它防的是浏览器侧混淆代理，**不是身份认证**。
+
+- 走 **隧道 / 自定义域名**访问时，Host 不是 loopback 也不是 LAN IP 字面量 → **需要 `--trusted-host <该authority>`**，否则 `/api` 请求会被围栏拒掉。
+- 更稳的路线：只绑 `127.0.0.1`，用 SSH 隧道进（此时 `launchedThroughSsh` 会抑制自动开浏览器）：
   ```bash
-  ssh -L 3080:127.0.0.1:3080 adam@<本机IP>   # 在手机端支持的客户端里做
+  ssh -L 3080:127.0.0.1:3080 adam@<本机IP>
   ```
 
 ### 6.4 会话工作区约定（决定围栏边界）
