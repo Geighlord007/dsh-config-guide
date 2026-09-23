@@ -70,3 +70,22 @@
 
 产物：`AGENTS.global.fedora.md`（110 行）、`AGENTS.global.windows.md`（120 行，基于仓库根草稿改）。
 仓库根 `AGENTS.md` 仍保留为旧草稿，未改动。
+
+---
+
+## 六、v3.3 根 `AGENTS.md` 替换为修订版
+
+原根 `AGENTS.md` 是自述"尚未启用"的旧草稿（Windows/合成生物学那版，含 KimiCU、PowerShell 工具表）。
+
+处置：
+
+- **根 `AGENTS.md` ← v3.2 的 Windows 修订版**（同步了删工具表、加派活铁律、强化禁止全库递归读取、语言规则）
+- **删除 `v3/AGENTS.global.windows.md`** —— 内容已提升到根目录，同内容保留两处必然漂移；根目录成为 Windows 版的**唯一落点**
+- Fedora 版仍留在 `v3/AGENTS.global.fedora.md`
+- 根 `README.md` 已更新：`AGENTS.md` 标注为"Windows 工作机版"并指向 Fedora 版；补了 `v3/` 一行与 v2 手册的修订提示
+
+旧草稿仍可从 git 历史取回：
+
+```bash
+git show 012c03f:AGENTS.md
+```

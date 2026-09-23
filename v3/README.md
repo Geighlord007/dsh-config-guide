@@ -7,7 +7,7 @@
 | [`DSH-Setup-Guide.windows.md`](./DSH-Setup-Guide.windows.md) | **v2 的修订版**（Windows）：权限/沙箱核心重写、插件清单纠错、路径参数化、依据分级 |
 | [`DSH-Setup-Guide.linux.md`](./DSH-Setup-Guide.linux.md) | **新写**（Fedora/Linux）：源码树安装形态、bwrap+Landlock 围栏验证、Windows→Linux 迁移对照、systemd/防火墙/手机访问、安全基线 |
 | [`AGENTS.global.fedora.md`](./AGENTS.global.fedora.md) | **全局指令（Fedora 版）**，目标位置 `~/.dsh/AGENTS.md` |
-| [`AGENTS.global.windows.md`](./AGENTS.global.windows.md) | **全局指令（Windows 版）**，目标位置 `C:\Users\<用户名>\.dsh\AGENTS.md` |
+| — | Windows 版全局指令已提升到仓库根 [`AGENTS.md`](../AGENTS.md)（原草稿的修订版），避免同内容两处漂移 |
 | [`CHANGELOG-v3.md`](./CHANGELOG-v3.md) | 改了哪 8 条、为什么、依据是什么 |
 | [`scripts/preflight-linux.sh`](./scripts/preflight-linux.sh) | Linux 自检脚本（只读，不打印密钥值） |
 
