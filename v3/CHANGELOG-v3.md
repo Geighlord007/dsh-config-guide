@@ -68,7 +68,7 @@
 | **语言规则统一** | 由草稿的"默认中文回复"改为"对话中文 + 交付物英文"（Windows 版同步） |
 | **交付前自检新增两项** | ①实现类工作是否已派给 subagent ②是否在全库递归读取上偷懒 |
 
-产物：`AGENTS.global.fedora.md`（110 行）、`AGENTS.global.windows.md`（120 行，基于仓库根草稿改）。
+产物：Fedora 版全局指令（110 行，现名 `v3/AGENTS.md`）、`AGENTS.global.windows.md`（120 行，基于仓库根草稿改）。
 仓库根 `AGENTS.md` 仍保留为旧草稿，未改动。
 
 ---
@@ -81,7 +81,7 @@
 
 - **根 `AGENTS.md` ← v3.2 的 Windows 修订版**（同步了删工具表、加派活铁律、强化禁止全库递归读取、语言规则）
 - **删除 `v3/AGENTS.global.windows.md`** —— 内容已提升到根目录，同内容保留两处必然漂移；根目录成为 Windows 版的**唯一落点**
-- Fedora 版仍留在 `v3/AGENTS.global.fedora.md`
+- Fedora 版仍留在 v3（后于 v3.4 改名为 `v3/AGENTS.md`）
 - 根 `README.md` 已更新：`AGENTS.md` 标注为"Windows 工作机版"并指向 Fedora 版；补了 `v3/` 一行与 v2 手册的修订提示
 
 旧草稿仍可从 git 历史取回：
@@ -89,3 +89,51 @@
 ```bash
 git show 012c03f:AGENTS.md
 ```
+
+---
+
+## 七、v3.4 改名 `AGENTS.md` + 实测发现"装了不生效"
+
+### 改名
+
+`v3/AGENTS.global.fedora.md` → **`v3/AGENTS.md`**（用户要求：这份就该是交给 DSH 用的 `AGENTS.md`）。
+同时把它开头那段"目标位置 / 来源 / 本版改动"的溯源引用块**删掉** —— 它会被装成 `~/.dsh/AGENTS.md`，每次会话都注入，
+溯源信息属于仓库读者需要、模型不需要的噪音；溯源改由本 CHANGELOG 承担。
+
+### 实测发现：光放文件不生效（重要）
+
+装好后查 `--dump-config` 与预设定义，发现两条被忽略的事实：
+
+1. **web profile 里 `agent-instructions` 是 `disabled: true`** ——
+   【源码】`bundle/web-app/cordis.patch.yml` 有明确注释："the agent plane moves behind agent presets"。
+   也就是说 **agent plane 的每一行（含指令装配、工具、skills）都由 agent preset 决定挂不挂**。
+
+2. **默认预设 `minimal`（极简模式）根本不挂它**，而且它的 persona 是
+   `complete: true` + `includeRuntimeContext: false` —— 源码注释原文："The persona is the complete system prompt,
+   so global identity, Web orientation, tool guidance, and later assembly listeners **cannot add prompt text**"。
+
+| 预设 | 名字 | agent-instructions | subagent |
+|---|---|---|---|
+| `standard` | 标准模式 | ✅ | ✅ |
+| `ptc` | PTC 模式 | ✅ | ✅（无 workflow） |
+| `cordis` | 创造模式 | ✅ | ✅ |
+| `minimal` | 极简模式 | ❌ | ❌ |
+
+### 顺带解释了三件旧事
+
+- 用户那份 52 行的 `~/AGENTS.md` 从来没生效过（两个原因叠加：位置不对 + 预设不挂）
+- `~/.agents/skills` 里 23 个技能在极简模式下**完全用不上**（没有 `tool-skill`）
+- `settings.yaml` 里那条 `subagent-model-selection` 是空转的（没有 subagent 工具）
+- 也因此，v3.2 新写的铁律 2「实现类工作派给 subagent」在极简模式下**不可能执行**
+
+### 处置
+
+`~/.dsh/settings.yaml`：`agent-presets.default: minimal` → **`standard`**（与 Windows 那台一致）。
+旁证：`--dump-config` 已显示最终树里 `agent-presets.config.default: standard`。
+
+### 新的坑（改名带来的）
+
+仓库里现在有两个 `AGENTS.md`：根目录（Windows 版）与 `v3/`（Fedora 版）。
+若有会话的 cwd 落在 `v3/` 内，指令发现会沿 root→cwd 链**同时加载这两个**，而两者规则不同（PowerShell vs bash）→ 会互相矛盾。
+正常在 `~/Deepseek` 下干活不会触发（那条链只有 cwd 一层）。真要避免，把仓库里这份改回 `AGENTS.fedora.md` 即可 ——
+装到 `~/.dsh/AGENTS.md` 的那个名字才是关键，仓库内的文件名不影响生效。

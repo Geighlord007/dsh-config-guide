@@ -6,7 +6,7 @@
 |---|---|
 | [`DSH-Setup-Guide.windows.md`](./DSH-Setup-Guide.windows.md) | **v2 的修订版**（Windows）：权限/沙箱核心重写、插件清单纠错、路径参数化、依据分级 |
 | [`DSH-Setup-Guide.linux.md`](./DSH-Setup-Guide.linux.md) | **新写**（Fedora/Linux）：源码树安装形态、bwrap+Landlock 围栏验证、Windows→Linux 迁移对照、systemd/防火墙/手机访问、安全基线 |
-| [`AGENTS.global.fedora.md`](./AGENTS.global.fedora.md) | **全局指令（Fedora 版）**，目标位置 `~/.dsh/AGENTS.md` |
+| [`AGENTS.md`](./AGENTS.md) | **全局指令（Fedora 版）** — 装到 `~/.dsh/AGENTS.md` 即被 DSH 读取 |
 | — | Windows 版全局指令已提升到仓库根 [`AGENTS.md`](../AGENTS.md)（原草稿的修订版），避免同内容两处漂移 |
 | [`CHANGELOG-v3.md`](./CHANGELOG-v3.md) | 改了哪 8 条、为什么、依据是什么 |
 | [`scripts/preflight-linux.sh`](./scripts/preflight-linux.sh) | Linux 自检脚本（只读，不打印密钥值） |
@@ -18,7 +18,7 @@
 bash ~/Deepseek/dsh-config-guide/v3/scripts/preflight-linux.sh
 
 # 启用全局指令（唯一可靠位置）
-cp ~/Deepseek/dsh-config-guide/v3/AGENTS.global.fedora.md ~/.dsh/AGENTS.md
+cp ~/Deepseek/dsh-config-guide/v3/AGENTS.md ~/.dsh/AGENTS.md
 ```
 
 ## 核查基线
@@ -47,3 +47,24 @@ cp ~/Deepseek/dsh-config-guide/v3/AGENTS.global.fedora.md ~/.dsh/AGENTS.md
 1. 飞书链路是否暴露 `/permission` 这类斜杠命令（需 Windows 那台的 `dsh-lark` profile）
 2. Windows 上「受限令牌 + ACL」沙箱的实际拦截效果
 3. patch 层是否展开 `$env:LOCALAPPDATA` 这类变量
+
+## ⚠️ 生效前提（2026-09-23 实测发现）
+
+**只把文件放到 `~/.dsh/AGENTS.md` 是不够的** —— 还得让会话用上挂载了 `agent-instructions` 的预设。
+
+- 「极简模式」(`minimal`)：persona 是 `complete: true` + `includeRuntimeContext: false`，**任何指令文件都注入不进去**，且没有 subagent
+- 「标准模式」(`standard`)：挂 `agent-instructions`（`maxBytes: 65536`），并有 Skills / 计划 / 目标 / 子代理 / 工作流
+
+设置位置：`~/.dsh/settings.yaml`
+
+```yaml
+agent-presets:
+  default: standard
+```
+
+验证：
+
+```bash
+dsh --profile web --dump-config | grep -A3 'id: agent-presets'
+# 应看到 default: standard
+```

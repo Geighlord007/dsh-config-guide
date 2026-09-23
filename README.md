@@ -11,7 +11,7 @@
 | 文件 | 说明 |
 |------|------|
 | [`DSH-Setup-Guide.md`](./DSH-Setup-Guide.md) | **完整部署手册** — 涵盖安装、插件清单、配置迁移、安全策略、部署脚本等 16 个章节 |
-| [`AGENTS.md`](./AGENTS.md) | **全局工作指令（Windows 工作机版）** — 原草稿的修订版；Fedora 版见 [`v3/AGENTS.global.fedora.md`](./v3/AGENTS.global.fedora.md) |
+| [`AGENTS.md`](./AGENTS.md) | **全局工作指令（Windows 工作机版）** — 原草稿的修订版；Fedora 版见 [`v3/AGENTS.md`](./v3/AGENTS.md) |
 | [`v3/`](./v3/) | **2026-09-23 修订与新增** — 权限/沙箱重写、Linux 版手册、自检脚本、两份全局指令。改动说明见 [`v3/CHANGELOG-v3.md`](./v3/CHANGELOG-v3.md) |
 
 ## 🚀 快速开始
